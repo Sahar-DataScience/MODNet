@@ -54,26 +54,26 @@ if __name__ == '__main__':
     modnet.load_state_dict(weights)
     modnet.eval()
 
-    # inference images
+   # inference images
     im_names = os.listdir(args.input_path)
     for im_name in im_names:
         print('Process image: {0}'.format(im_name))
 
         # read image
-        im = Image.open(os.path.join(args.input_path, im_name))
+        im1 = Image.open(os.path.join(args.input_path, im_name))
 
         # unify image channels to 3
-        im = np.asarray(im)
-        if len(im.shape) == 2:
-            im = im[:, :, None]
-        if im.shape[2] == 1:
-            im = np.repeat(im, 3, axis=2)
-        elif im.shape[2] == 4:
-            im = im[:, :, 0:3]
-
+        im1 = np.asarray(im1)
+        if len(im1.shape) == 2:
+            im1 = im1[:, :, None]
+        if im1.shape[2] == 1:
+            im1 = np.repeat(im1, 3, axis=2)
+        elif im1.shape[2] == 4:
+            im1 = im1[:, :, 0:3]
+        #im1 array  
         # convert image to PyTorch tensor
-        im = Image.fromarray(im)
-        im = im_transform(im)
+        im1 = Image.fromarray(im1)
+        im = im_transform(im1)
 
         # add mini-batch dim
         im = im[None, :, :, :]
@@ -93,13 +93,18 @@ if __name__ == '__main__':
         
         im_rw = im_rw - im_rw % 32
         im_rh = im_rh - im_rh % 32
-        im = F.interpolate(im, size=(im_rh, im_rw), mode='area')
+        
+        #im_rh = 512
+        #im_rw = 348
+        #im = F.interpolate(im, size=(im_rh, im_rw), mode='area')
+        im = F.adaptive_avg_pool2d(im, (im_rh, im_rw))
 
         # inference
         _, _, matte = modnet(im.cuda() if torch.cuda.is_available() else im, True)
 
         # resize and save matte
-        matte = F.interpolate(matte, size=(im_h, im_w), mode='area')
-        matte = matte[0][0].data.cpu().numpy()
-        matte_name = im_name.split('.')[0] + '.png'
-        Image.fromarray(((matte * 255).astype('uint8')), mode='L').save(os.path.join(args.output_path, matte_name))
+        #matte = F.interpolate(matte, size=(im_h, im_w), mode='area')
+        # make change so that the foreground output img is  512*348 the needed size in the virtual try-on 
+        im_rh = 512
+        im_rw = 348
+        matte = F.adaptive_avg_pool2d(matte, (im_rh, im_rw))
